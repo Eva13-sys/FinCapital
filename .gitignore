@@ -4,7 +4,6 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-<<<<<<< HEAD
 lerna-debug.log*
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -138,9 +137,18 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-=======
 
-.env
+# Firebase service account key
+backend/config/*.json
+.history/backend/config/*.json
 
-fincapital-374df-firebase-adminsdk-fbsvc-a00408d0c1.json
->>>>>>> 14b7799 (Initial commit)
+
+.history/
+.vscode-test/
+.tern-port
+*.tsbuildinfo
+*.tgz
+.cache
+.parcel-cache
+.build/
+
