@@ -46,8 +46,8 @@
 //   }
 // };
 // backend/middleware/firebaseAuth.js
-const admin = require("firebase-admin");
-const serviceAccount = require("../config/fincapital-374df-firebase-adminsdk-fbsvc-06827f4c3d.json");
+import admin from 'firebase-admin';
+import serviceAccount from '../config/fincapital-374df-firebase-adminsdk-fbsvc-7afacd6da3.json' with { type: 'json' };
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -76,4 +76,4 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
-module.exports = verifyFirebaseToken;
+export default verifyFirebaseToken;
