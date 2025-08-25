@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const companySchema = new mongoose.Schema({
   ticker: { type: String, required: true },
@@ -28,4 +28,4 @@ const companySchema = new mongoose.Schema({
   cik: { type: String },
 });
 
-module.exports = mongoose.model('Company', companySchema);
+export default mongoose.model("Company", companySchema);
