@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { io } from 'socket.io-client';
-import SearchPanel from "./components/SearchPanel";
+// import SearchPanel from "./components/SearchPanel";
 import Chart from './components/Chart';
 import TradePanel from './components/TradePanel';
 import HoldingsTable from './components/HoldingsTable';
 import CandlestickChart from './components/CandleStickChart';
+import LeftPanel from "./components/LeftPanel";
 import { useNavigate } from 'react-router-dom';
 
 const SOCKET_URL = "https://localhost:5000";
@@ -249,7 +250,7 @@ const TradingPage = () => {
 
       {/* main */}
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-6">
-        <div className="bg-white rounded-2xl shadow p-4">
+        {/* <div className="bg-white rounded-2xl shadow p-4">
           <SearchPanel
             esgOnly={esgOnly}
             setEsgOnly={setEsgOnly}
@@ -260,7 +261,12 @@ const TradingPage = () => {
             toggleWatch={toggleWatch}
             knownStocks={KNOWN_STOCKS}
           />
+        </div> */}
+        {/* Left Panel */}
+        <div className="bg-white rounded-2xl shadow p-4">
+          <LeftPanel selected={selected} setSelected={setSelected} />
         </div>
+
 
         {/* Center : chart*/}
         <div className="bg-white rounded-2xl shadow p-4 flex flex-col">
