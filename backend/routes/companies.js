@@ -1,7 +1,6 @@
-const express = require('express');
+import express from 'express';
+import Company from '../models/Company.js';
 const router = express.Router();
-const Company = require('../models/Company');
-
 //Get all the companies
 router.get('/', async (req, res) => {
   try {
@@ -32,5 +31,4 @@ router.post('/', async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
-module.exports = router;
+export default router;

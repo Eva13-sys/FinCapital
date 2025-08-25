@@ -1,6 +1,6 @@
-const express = require('express');
-const Chart = require('../models/Chart');
-const auth = require('../middleware/firebaseAuth');
+import express from 'express';
+import Chart from '../models/Chart.js';
+import auth from '../middleware/firebaseAuth.js';
 
 const router = express.Router();
 
@@ -36,5 +36,4 @@ router.post('/', auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-module.exports = router;
+export default router;
