@@ -43,7 +43,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ✅ Create Google provider
+//Create Google provider
 const provider = new GoogleAuthProvider();
 
 export { app, auth, db, provider };
