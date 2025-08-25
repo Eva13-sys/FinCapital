@@ -1,8 +1,10 @@
-require('dotenv').config({ path: __dirname + '/../.env' });
-const mongoose = require('mongoose');
-const fs = require('fs');
-const csv = require('csv-parser'); 
-const Company = require('../models/Company');
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import fs from 'fs';
+import csv from 'csv-parser';
+import Company from '../models/Company.js';
+
+dotenv.config({ path: new URL('../.env', import.meta.url).pathname });
 
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -14,7 +16,7 @@ async function seedCompanies() {
   try {
     const results = [];
 
-    fs.createReadStream('./data/data.csv') 
+    fs.createReadStream(new URL('./data/data.csv', import.meta.url)) 
       .pipe(csv())
       .on('data', (row) => {
         results.push(row);
@@ -23,10 +25,9 @@ async function seedCompanies() {
         console.log(`Read ${results.length} rows from CSV.`);
 
         await Company.deleteMany({});
-
         await Company.insertMany(results);
-        console.log('Companies data inserted successfully');
 
+        console.log('Companies data inserted successfully');
         mongoose.connection.close();
       });
   } catch (err) {
