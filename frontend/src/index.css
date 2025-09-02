@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Add to your index.css or global CSS */
+main > * {
+  width: 100%;
+}
+
 body {
   overflow-x: hidden;
   overflow-y: auto;
