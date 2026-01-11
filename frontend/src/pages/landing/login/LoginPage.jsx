@@ -71,13 +71,14 @@ const LoginPage = () => {
     // };
 
     return (
-        <div className="min-h-screen flex flex-col md:flex-row bg-[#FAFAFA]">
+        <div className="min-h-screen flex flex-col md:flex-row bg-[#ffffff]">
             {/* Left Side - Hero Image */}
-            <div className="md:w-1/2 hidden md:flex items-center justify-center bg-[#F5F5F5]">
+            <div className="md:w-1/2 hidden md:flex items-center justify-center bg-[#ffffff]">
                 <img
-                    src="/media/main.png"
+                    src="/media/main.jpg"
                     alt="Login Visual"
-                    className="w-full h-full object-cover rounded-r-xl shadow-xl max-h-screen"
+                    // className="w-full h-full object-cover rounded-r-xl max-h-screen"
+                    className="w-3/4 h-auto object-contain rounded-r-xl"
                 />
             </div>
 

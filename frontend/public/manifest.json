@@ -1,0 +1,9 @@
+{
+  "short_name": "Fincap",
+  "name": "Fincapital",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0b5cff",
+  "icons": []
+}

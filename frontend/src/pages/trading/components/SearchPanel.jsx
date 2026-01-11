@@ -1,212 +1,86 @@
-// import React, { useState, useEffect, useMemo } from "react";
-// import axios from "axios";
-
-// const CATEGORIES = [
-//   { key: "popular", label: "Popular Stocks", filter: (s) => ["INFY", "TCS", "RELIANCE", "HDFCBANK"].includes(s.symbol) },
-//   { key: "beginner", label: "Beginner Friendly", filter: (s) => ["INFY", "HDFCBANK", "ITC"].includes(s.symbol) },
-//   { key: "esg", label: "ESG Stocks", filter: (s) => s.esg },
-// ];
-
-// const SearchPanel = ({ userId, selected, setSelected }) => {
-//   const [stocks, setStocks] = useState([]);
-//   const [watchlist, setWatchlist] = useState([]);
-//   const [esgOnly, setEsgOnly] = useState(false);
-//   const [tab, setTab] = useState("popular");
-//   const [q, setQ] = useState("");
-
-//   // Fetch all stocks from MySQL
-//   useEffect(() => {
-//     axios.get("http://localhost:5000/api/sql/stocks")
-//       .then(res => setStocks(res.data))
-//       .catch(err => console.error(err));
-//   }, []);
-
-//   // Fetch watchlist from Mongo
-//   useEffect(() => {
-//     axios.get(`http://localhost:5000/api/mongo/watchlist/${userId}`)
-//       .then(res => setWatchlist(res.data.map(w => w.symbol)))
-//       .catch(err => console.error(err));
-//   }, [userId]);
-
-//   // Filtered stocks for tab
-//   const tabbed = useMemo(() => {
-//     const cat = CATEGORIES.find(c => c.key === tab);
-//     const base = cat ? stocks.filter(cat.filter) : stocks;
-//     return base.filter(s => (esgOnly ? s.esg : true));
-//   }, [tab, esgOnly, stocks]);
-
-//   // Search suggestions
-//   const suggestions = useMemo(() => {
-//     if (!q) return [];
-//     const qq = q.toLowerCase();
-//     return stocks.filter(s => s.symbol.toLowerCase().includes(qq) || s.name.toLowerCase().includes(qq)).slice(0,6);
-//   }, [q, stocks]);
-
-//   const toggleWatch = async (symbol) => {
-//     try {
-//       if (watchlist.includes(symbol)) {
-//         await axios.post("http://localhost:5000/api/mongo/watchlist", { userId, symbol, remove: true });
-//         setWatchlist(watchlist.filter(s => s !== symbol));
-//       } else {
-//         await axios.post("http://localhost:5000/api/mongo/watchlist", { userId, symbol });
-//         setWatchlist([...watchlist, symbol]);
-//       }
-//     } catch (err) { console.error(err); }
-//   };
-
-//   return (
-//     <div className="space-y-4">
-//       {/* Search Box */}
-//       <div>
-//         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search..." className="w-full border rounded px-3 py-2" />
-//         {q && suggestions.length > 0 && (
-//           <div className="mt-2 border rounded-lg divide-y">
-//             {suggestions.map(s => (
-//               <button key={s.symbol} onClick={() => { setSelected(s); setQ(""); }} className="w-full text-left px-3 py-2 hover:bg-gray-50">
-//                 {s.name} <span className="text-gray-500">({s.symbol})</span>
-//               </button>
-//             ))}
-//           </div>
-//         )}
-//       </div>
-
-//       {/* ESG filter */}
-//       <label className="flex items-center gap-2">
-//         <input type="checkbox" checked={esgOnly} onChange={e => setEsgOnly(e.target.checked)} />
-//         ESG only
-//       </label>
-
-//       {/* Category Tabs */}
-//       <div className="flex gap-2">
-//         {CATEGORIES.map(c => (
-//           <button key={c.key} onClick={() => setTab(c.key)} className={`px-3 py-1 rounded-full border ${tab===c.key?'bg-black text-white':'hover:bg-gray-100'}`}>
-//             {c.label}
-//           </button>
-//         ))}
-//       </div>
-
-//       {/* Browse Stocks */}
-//       <div className="flex flex-wrap gap-2">
-//         {tabbed.map(s => (
-//           <button key={s.symbol} onClick={() => setSelected(s)} className={`px-3 py-1 rounded-full border ${selected.symbol===s.symbol?'bg-blue-600 text-white':'hover:bg-gray-100'}`}>
-//             {s.symbol}
-//           </button>
-//         ))}
-//       </div>
-
-//       {/* Watchlist */}
-//       <div>
-//         {watchlist.map(sym => (
-//           <div key={sym} className="flex items-center gap-2 border rounded-full px-3 py-1">
-//             <button onClick={() => setSelected(stocks.find(s=>s.symbol===sym))}>{sym}</button>
-//             <button onClick={() => toggleWatch(sym)} className="text-red-500 font-bold">×</button>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default SearchPanel;
-
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const CATEGORIES = [
-  { key: "popular", label: "Popular Stocks", filter: (s) => ["INFY", "TCS", "RELIANCE", "HDFCBANK"].includes(s.symbol) },
-  { key: "beginner", label: "Beginner Friendly", filter: (s) => ["INFY", "HDFCBANK", "ITC"].includes(s.symbol) },
-  { key: "esg", label: "ESG Stocks", filter: (s) => s.esg },
-];
+const RECENT_KEY = "trade:recent-searches";
 
-const SearchPanel = ({ userId, selected, setSelected, esgOnly, setEsgOnly, universe, watchlist, toggleWatch, knownStocks }) => {
-  const [stocks, setStocks] = useState([]);
-  const [tab, setTab] = useState("popular");
-  const [q, setQ] = useState("");
+export default function SearchPanel({ mode, onSelect }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [recent, setRecent] = useState(
+    JSON.parse(localStorage.getItem(RECENT_KEY) || "[]")
+  );
 
-  // Fetch all stocks from MySQL
   useEffect(() => {
-    axios.get("http://localhost:5000/api/sql/stocks")
-      .then(res => setStocks(res.data))
-      .catch(err => console.error(err));
-  }, []);
+    if (!query) {
+      setResults([]);
+      return;
+    }
 
-  // Filtered stocks for tab
-  const tabbed = useMemo(() => {
-    const cat = CATEGORIES.find(c => c.key === tab);
-    const base = cat ? stocks.filter(cat.filter) : stocks;
-    return base.filter(s => (esgOnly ? s.esg : true));
-  }, [tab, esgOnly, stocks]);
+    const endpoint = "http://localhost:5000/api/finnhub/search";
 
-  // Search suggestions
-  const suggestions = useMemo(() => {
-    if (!q) return [];
-    const qq = q.toLowerCase();
-    return stocks.filter(s => s.symbol.toLowerCase().includes(qq) || s.name.toLowerCase().includes(qq)).slice(0,6);
-  }, [q, stocks]);
+    const t = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${endpoint}?q=${query}`);
+        const data = res.data || [];
 
-  const handleToggleWatch = async (symbol) => {
-    try {
-      if (watchlist.includes(symbol)) {
-        await axios.post("http://localhost:5000/api/mongo/watchlist", { userId, symbol, remove: true });
-        toggleWatch(symbol);
-      } else {
-        await axios.post("http://localhost:5000/api/mongo/watchlist", { userId, symbol });
-        toggleWatch(symbol);
+        if (mode === "LIVE") {
+          setResults(data.filter((r) => /^[A-Z]+$/.test(r.symbol)));
+        } 
+        else {
+          setResults(data.filter((r) => /^[A-Z]+$/.test(r.symbol)));
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+        setResults([]);
       }
-    } catch (err) { console.error(err); }
+    }, 300);
+
+    return () => clearTimeout(t);
+  }, [query, mode]);
+
+  const select = (stock) => {
+    onSelect(stock);
+
+    const updated = [
+      stock,
+      ...recent.filter((r) => r.symbol !== stock.symbol),
+    ].slice(0, 5);
+
+    setRecent(updated);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    setQuery("");
+    setResults([]);
   };
 
   return (
-    <div className="space-y-4">
-      {/* Search Box */}
-      <div>
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search..." className="w-full border rounded px-3 py-2" />
-        {q && suggestions.length > 0 && (
-          <div className="mt-2 border rounded-lg divide-y">
-            {suggestions.map(s => (
-              <button key={s.symbol} onClick={() => { setSelected(s); setQ(""); }} className="w-full text-left px-3 py-2 hover:bg-gray-50">
-                {s.name} <span className="text-gray-500">({s.symbol})</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="relative">
+      <input
+        className="w-full border px-3 py-2 rounded"
+        placeholder={`Search (${mode})`}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
 
-      {/* ESG filter */}
-      <label className="flex items-center gap-2">
-        <input type="checkbox" checked={esgOnly} onChange={e => setEsgOnly(e.target.checked)} />
-        ESG only
-      </label>
+      {results.map((r) => (
+        <div
+          key={r.symbol}
+          className="px-3 py-2 cursor-pointer hover:bg-gray-100"
+          onClick={() => select(r)}
+        >
+          <b>{r.symbol}</b> – {r.name}
+        </div>
+      ))}
 
-      {/* Category Tabs */}
-      <div className="flex gap-2">
-        {CATEGORIES.map(c => (
-          <button key={c.key} onClick={() => setTab(c.key)} className={`px-3 py-1 rounded-full border ${tab===c.key?'bg-black text-white':'hover:bg-gray-100'}`}>
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Browse Stocks */}
-      <div className="flex flex-wrap gap-2">
-        {tabbed.map(s => (
-          <button key={s.symbol} onClick={() => setSelected(s)} className={`px-3 py-1 rounded-full border ${selected.symbol===s.symbol?'bg-blue-600 text-white':'hover:bg-gray-100'}`}>
-            {s.symbol}
-          </button>
-        ))}
-      </div>
-
-      {/* Watchlist */}
-      <div>
-        {watchlist.map(sym => (
-          <div key={sym} className="flex items-center gap-2 border rounded-full px-3 py-1">
-            <button onClick={() => setSelected(stocks.find(s=>s.symbol===sym))}>{sym}</button>
-            <button onClick={() => handleToggleWatch(sym)} className="text-red-500 font-bold">×</button>
+      {!query &&
+        recent.map((r) => (
+          <div
+            key={r.symbol}
+            className="px-3 py-2 text-sm text-gray-500 cursor-pointer"
+            onClick={() => onSelect(r)}
+          >
+            {r.symbol} – {r.name}
           </div>
         ))}
-      </div>
     </div>
   );
-};
-
-export default SearchPanel;
+}

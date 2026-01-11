@@ -1,791 +1,296 @@
-// import React, { useState, useEffect, useMemo } from 'react'
-// import { io } from 'socket.io-client';
-// // import SearchPanel from "./components/SearchPanel";
-// import Chart from './components/Chart';
-// import TradePanel from './components/TradePanel';
-// import HoldingsTable from './components/HoldingsTable';
-// import CandlestickChart from './components/CandleStickChart';
-// import LeftPanel from "./components/LeftPanel";
-// // import { useNavigate } from 'react-router-dom';
-// import PreTradeCheckinModal from "../../components/PreTradeCheckinModal";
-// import { useAuth } from '../../contexts/AuthContext';
-
-// const SOCKET_URL = "https://localhost:5000";
-
-// const KNOWN_STOCKS = [
-//   { symbol: "TCS", name: "Tata Consultancy Services", esg: true },
-//   { symbol: "RELIANCE", name: "Reliance Industries", esg: false },
-//   { symbol: "HDFCBANK", name: "HDFC Bank", esg: true },
-//   { symbol: "INFY", name: "Infosys", esg: true },
-//   { symbol: "ITC", name: "ITC", esg: false },
-//   { symbol: "TATASTEEL", name: "Tata Steel", esg: true },
-//   { symbol: "SBIN", name: "State Bank of India", esg: false },
-// ];
-
-// const TIMEFRAMES = ["1D", "1W", "1M", "1Y"];
-// const ALPHA_BASE = "https://www.alphavantage.co/query";
-// const AV_KEY = process.env.REACT_APP_ALPHA_VANTAGE_KEY || "";
-
-// const getLS = (k, def) => {
-//   try {
-//     return JSON.parse(localStorage.getItem(k)) ?? def;
-//   } catch {
-//     return def;
-//   }
-// };
-
-// const setLS = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-// function dummySeries(days = 30, start = 100) {
-//   const now = Date.now();
-//   let v = start;
-//   const out = [];
-//   for (let i = days - 1; i >= 0; i--) {
-//     v += (Math.random() - 0.5) * (start * 0.02);
-//     out.push({ time: new Date(now - i * 24 * 3600 * 1000).toISOString(), price: Math.max(1, +v.toFixed(2)) });
-//   }
-//   return out;
-// }
-
-// async function fetchSeries(symbol, timeframe) {
-//   if (!AV_KEY) {
-//     if (timeframe === '1D') return dummySeries(24, 100).map((d, i) => ({ time: i, price: d.price }));
-//     if (timeframe === '1W') return dummySeries(7, 100);
-//     if (timeframe === '1M') return dummySeries(30, 100);
-//     return dummySeries(365, 100);
-//   }
-
-//   try {
-//     if (timeframe === '1D') {
-//       const url = `${ALPHA_BASE} ? function = TIME_SERIES_INTRADAY & symbol = ${symbol} & interval =5min&outputsize=compact&apikey=${AV_KEY}`;
-//       const r = await fetch(url);
-//       const j = await r.json();
-//       const series = j["Time Series (5min)"];
-//       if (!series) throw new Error("No intraday data");
-//       // const points = Object.entries(series)
-//       //   .map(([t, obj]) => ({
-//       //     time: t,
-//       //     open: +obj["1. open"],
-//       //     high: +obj["2. high"],
-//       //     low: +obj["3. low"],
-//       //     close: +obj["4. close"],
-//       //   }))
-
-//       //   .sort((a, b) => new Date(a.time) - new Date(b.time));
-//       let points = Object.entries(series)
-//         .map(([t, obj]) => ({
-//           time: t,
-//           open: +obj["1. open"],
-//           high: +obj["2. high"],
-//           low: +obj["3. low"],
-//           close: +obj["4. close"],
-//         }))
-//         .sort((a, b) => new Date(a.time) - new Date(b.time));
-
-//       return points;
-//     }
-//     else {
-//       //daily adjusted
-//       const url = `${ALPHA_BASE} ? function= TIME_SERIES_DAILY_ADJUSTED& symbol = ${symbol} & outputsize=compact & apikey=${AV_KEY}`;
-//       const r = await fetch(url);
-//       const j = await r.json();
-//       const series = j["Time Series (Daily)"];
-//       if (!series) throw new Error("No daily data");
-//       let points = Object.entries(series)
-//         .map(([t, obj]) => ({
-//           time: t,
-//           open: +obj["1. open"],
-//           high: +obj["2. high"],
-//           low: +obj["3. low"],
-//           close: +obj["4. close"],
-//           price: +obj["4. close"],
-//         }))
-//         .sort((a, b) => new Date(a.time) - new Date(b.time));
-//       if (timeframe === '1W') points = points.slice(-7);
-//       else if (timeframe === '1M') points = points.slice(-30);
-//       else if (timeframe === '1Y') points = points.slice(-365);
-//       return points;
-//     }
-//   }
-//   catch {
-//     //fallback
-//     if (timeframe === '1D') return dummySeries(24, 100).map((d, i) => ({ time: i, price: d.price }));
-//     if (timeframe === '1W') return dummySeries(7, 100);
-//     if (timeframe === '1M') return dummySeries(30, 100);
-//     return dummySeries(365, 100);
-//   }
-// }
-
-// const TradingPage = () => {
-//   const [timeframe, setTimeframe] = useState(TIMEFRAMES[1]); //1week
-//   // const [selected, setSelected] = useState("tp: selected", KNOWN_STOCKS[0]);
-//   const [selected, setSelected] = useState(KNOWN_STOCKS[0]);
-//   const [series, setSeries] = useState([]);
-//   const [currentPrice, setCurrentPrice] = useState(0);
-//   const [balance, setBalance] = useState(getLS("tp:balance", 10000)); //Rs.10000 default
-//   const [holdings, setHoldings] = useState(getLS("tp:holdings", []));
-//   const [watchlist, setWatchlist] = useState(getLS("tp:watchlist", ["INFY", "TCS", "RELIANCE"]));
-//   const [esgOnly, setEsgOnly] = useState(getLS("tp:esgOnly", false));
-
-//   const [chartType, setChartType] = useState("line");
-//   const [isModalOpen, setIsModalOpen] = useState(false);
-//   const [tradeType, setTradeType] = useState("");
-//   const [mood, setMood] = useState("🙂");
-//   const [conviction, setConviction] = useState(5);
-//   const [pendingQty, setPendingQty] = useState(1);
-
-//   useEffect(() => setLS("tp:selected", selected), [selected]);
-//   useEffect(() => setLS("tp:balance", balance), [balance]);
-//   useEffect(() => setLS("tp:holdings", holdings), [holdings]);
-//   useEffect(() => setLS("tp:watchlist", watchlist), [watchlist]);
-//   useEffect(() => setLS("tp:esgOnly", esgOnly), [esgOnly]);
-//   // useEffect(() => {
-//   //   // Mock candlestick data (replace later with API)
-//   //   const sampleData = [
-//   //     { time: "2023-01-02", open: 150, high: 160, low: 145, close: 155 },
-//   //     { time: "2023-01-03", open: 155, high: 165, low: 150, close: 160 },
-//   //     { time: "2023-01-04", open: 160, high: 170, low: 155, close: 165 },
-//   //     { time: "2023-01-05", open: 165, high: 175, low: 160, close: 170 },
-//   //     { time: "2023-01-06", open: 170, high: 180, low: 165, close: 175 },
-//   //   ];
-//   //   setChartData(sampleData);
-//   // }, []);
-
-//   // Fetch series
-//   useEffect(() => {
-//     let alive = true;
-//     (async () => {
-//       const s = await fetchSeries(selected.symbol, timeframe);
-//       if (!alive) return;
-//       setSeries(s);
-//       if (s.length) setCurrentPrice(+s[s.length - 1].price);
-//     })();
-//     return () => { alive = false; };
-//   }, [selected.symbol, timeframe]);
-
-
-//   const filteredUniverse = useMemo(
-//     () => KNOWN_STOCKS.filter((s) => (esgOnly ? s.esg : true)),
-//     [esgOnly]
-//   );
-
-//   const onBuy = (qty) => {
-//     const cost = qty * currentPrice;
-//     if (qty <= 0 || cost > balance) return false;
-//     setBalance((b) => +(b - cost).toFixed(2));
-
-//     setHoldings((prev) => {
-//       const idx = prev.findIndex((h) => h.symbol === selected.symbol);
-//       if (idx === -1) {
-//         return [...prev, { symbol: selected.symbol, name: selected.name, qty, avgCost: currentPrice }];
-//       }
-//       const h = prev[idx];
-//       const newQty = h.qty + qty;
-//       const newAvg = (h.avgCost * h.qty + currentPrice * qty) / newQty;
-//       const copy = [...prev];
-//       copy[idx] = { ...h, qty: newQty, avgCost: +newAvg.toFixed(2) };
-//       return copy;
-//     });
-//     return true;
-//   };
-
-
-//   const onSell = (qty) => {
-//     if (qty <= 0) return false;
-//     let ok = false;
-//     setHoldings((prev) => {
-//       const idx = prev.findIndex((h) => h.symbol === selected.symbol);
-//       if (idx === -1) return prev;
-//       const h = prev[idx];
-//       if (qty > h.qty) return prev;
-//       ok = true;
-//       const newQty = h.qty - qty;
-//       const proceeds = qty * currentPrice;
-//       setBalance((b) => +(b + proceeds).toFixed(2));
-//       if (newQty === 0) {
-//         const copy = [...prev];
-//         copy.splice(idx, 1);
-//         return copy;
-//       }
-//       const copy = [...prev];
-//       copy[idx] = { ...h, qty: newQty };
-//       return copy;
-//     });
-//     return ok;
-//   };
-
-//   const handleTradeClick = (type, qty) => {
-//     setTradeType(type);
-//     setPendingQty(qty);
-//     setIsModalOpen(true);
-//   };
-
-//   const handleCheckinSubmit = async ({ mood, conviction, reflection }) => {
-//     setIsModalOpen(false);
-
-//     try {
-//       const res = await fetch("http://localhost:5000/api/mentor/checkin", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           tradeType,
-//           mood,
-//           conviction,
-//           reflection,
-//           stock: selected?.symbol || "N/A",
-//         }),
-//       });
-//       const data = await res.json();
-//       alert(`AI Mentor Advice: ${data.advice}`);
-
-//       // if (tradeType === "Buy") onBuy(1);
-//       // else if (tradeType === "Sell") onSell(1);
-//       if (tradeType === "Buy") onBuy(pendingQty);
-//       else if (tradeType === "Sell") onSell(pendingQty);
-
-
-//     } catch (err) {
-//       console.error("Mentor check-in failed:", err);
-//       alert("Trade executed, but mentor advice not available.");
-//       if (tradeType === "Buy") onBuy(pendingQty);
-//       else if (tradeType === "Sell") onSell(pendingQty);
-//     }
-//   };
-
-//   const toggleWatch = (symbol) => {
-//     setWatchlist((w) =>
-//       w.includes(symbol) ? w.filter((s) => s !== symbol) : [...w, symbol]
-//     );
-//   };
-
-//   // Portfolio totals
-//   const totals = useMemo(() => {
-//     const rows = holdings.map((h) => {
-//       const value = +(h.qty * currentPrice).toFixed(2);
-//       const cost = +(h.qty * h.avgCost).toFixed(2);
-//       const pnl = +(value - cost).toFixed(2);
-//       const pnlPct = cost ? +((pnl / cost) * 100).toFixed(2) : 0;
-//       return { ...h, currentPrice, value, pnl, pnlPct };
-//     });
-//     const totalValue = rows.reduce((a, r) => a + r.value, 0);
-//     const totalCost = rows.reduce((a, r) => a + r.avgCost * r.qty, 0);
-//     const totalPnl = +(totalValue - totalCost).toFixed(2);
-//     return { rows, totalValue: +totalValue.toFixed(2), totalPnl, totalCost: +totalCost.toFixed(2) };
-//   }, [holdings, currentPrice]);
-
-//   return (
-//     <div className='flex flex-col gap-6 p-4 md:p-6 max-w-7xl mx-auto'>
-//       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-//         <div className='bg-white rounded-2xl shadow p-4'>
-//           <div className='text-sm text-gray-600'>Balance</div>
-//           <div className='text-2xl font-semibold'>Rs.{balance.toLocaleString()}</div>
-//         </div>
-//         <div className='bg-white rounded-2xl shadow p-4'>
-//           <div className='text-sm text-gray-600'>Portfolio Value</div>
-//           <div className='text-2xl font-semibold'>Rs.{totals.totalValue.toLocaleString()}</div>
-//         </div>
-//         <div className={`bg-white rounded-2xl shadow p-4`}>
-//           <div className="text-sm text-gray-500">P/L</div>
-//           <div className={`text-2xl font-semibold ${totals.totalPnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-//             Rs.{totals.totalPnl.toLocaleString()}
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* main */}
-//       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-6">
-//         {/* <div className="bg-white rounded-2xl shadow p-4">
-//           <SearchPanel
-//             esgOnly={esgOnly}
-//             setEsgOnly={setEsgOnly}
-//             universe={filteredUniverse}
-//             selected={selected}
-//             setSelected={setSelected}
-//             watchlist={watchlist}
-//             toggleWatch={toggleWatch}
-//             knownStocks={KNOWN_STOCKS}
-//           />
-//         </div> */}
-//         {/* Left Panel */}
-//         <div className="bg-white rounded-2xl shadow p-4">
-//           <LeftPanel selected={selected} setSelected={setSelected} />
-//         </div>
-
-
-//         {/* Center : chart*/}
-//         <div className="bg-white rounded-2xl shadow p-4 flex flex-col">
-//           <div className='flex items-end justify-between gap-3 mb-3'>
-//             <div>
-//               <div className='text-lg font-semibold'>{selected.name} ({selected.symbol})</div>
-//               <div className='text-sm'>
-//                 <span className={`${currentPrice >= (series.at(-2)?.price ?? currentPrice) ? "text-green-600" : "text-red-600"} font-semibold`}>
-//                   Rs{currentPrice.toFixed(2)}
-//                 </span>
-//               </div>
-//             </div>
-//             <div className="flex gap-2">
-//               {TIMEFRAMES.map(tf => (
-//                 <button
-//                   key={tf}
-//                   onClick={() => setTimeframe(tf)}
-//                   className={`px-3 py-1 rounded-full border ${tf === timeframe ? "bg-black text-white" : "hover:bg-gray-100"}`}
-//                 >{tf}</button>
-//               ))}
-//             </div>
-//           </div>
-//           {/* <Chart data={series} /> */}
-//           {/* Switch to candlestick */}
-//           {/* <CandlestickChart data={series} /> */}
-//           <div className="flex gap-2 mb-3">
-//             <button
-//               onClick={() => setChartType("line")}
-//               className={`px-3 py-1 rounded-full border ${chartType === "line" ? "bg-black text-white" : "hover:bg-gray-100"}`}
-//             >
-//               Line
-//             </button>
-//             <button
-//               onClick={() => setChartType("candlestick")}
-//               className={`px-3 py-1 rounded-full border ${chartType === "candlestick" ? "bg-black text-white" : "hover:bg-gray-100"}`}
-//             >
-//               Candlestick
-//             </button>
-//           </div>
-//           {chartType === "line" ? (
-//             <Chart data={series} />
-//           ) : (
-//             <CandlestickChart data={series} />
-//           )}
-//         </div>
-
-//         {/* Right */}
-//         <div className="bg-white rounded-2xl shadow p-4">
-//           <TradePanel
-//             currentPrice={currentPrice}
-//             balance={balance}
-//             onBuy={(qty) => handleTradeClick("Buy", qty)}
-//             onSell={(qty) => handleTradeClick("Sell", qty)}
-//           />
-
-//           {/* Simple risk bar */}
-//           <div className="mt-4">
-//             <div className="text-sm text-gray-600 mb-1">Risk Indicator</div>
-//             <div className="h-2 w-full rounded bg-gradient-to-r from-green-500 via-yellow-400 to-red-500" />
-//           </div>
-//         </div>
-//       </div>
-//       {/* Bottom: Holdings */}
-//       <div className="bg-white rounded-2xl shadow p-4">
-//         <HoldingsTable rows={totals.rows} />
-//       </div>
-
-//       {/* Pre-trade Check-in Modal */}
-//       <PreTradeCheckinModal
-//         isOpen={isModalOpen}
-//         onClose={() => setIsModalOpen(false)}
-//         onSubmit={handleCheckinSubmit}
-//       />
-
-//     </div>
-//   )
-// }
-
-// export default TradingPage
-import React, { useState, useEffect, useMemo } from 'react'
-import { io } from 'socket.io-client';
-import Chart from './components/Chart';
-import TradePanel from './components/TradePanel';
-import HoldingsTable from './components/HoldingsTable';
-import CandlestickChart from './components/CandleStickChart';
+import React, { useEffect, useMemo, useState } from "react";
+import CandlestickChart from "./components/CandleStickChart";
+import TradePanel from "./components/TradePanel";
+import HoldingsTable from "./components/HoldingsTable";
 import LeftPanel from "./components/LeftPanel";
-import PreTradeCheckinModal from "../../components/PreTradeCheckinModal";
-import TradeAnalysisModal from '../../components/TradeAnalysisModal';
-import { useAuth } from '../../context/AuthContext'; // Import your auth context
-
-const SOCKET_URL = "https://localhost:5000";
-
-const KNOWN_STOCKS = [
-  { symbol: "TCS", name: "Tata Consultancy Services", esg: true },
-  { symbol: "RELIANCE", name: "Reliance Industries", esg: false },
-  { symbol: "HDFCBANK", name: "HDFC Bank", esg: true },
-  { symbol: "INFY", name: "Infosys", esg: true },
-  { symbol: "ITC", name: "ITC", esg: false },
-  { symbol: "TATASTEEL", name: "Tata Steel", esg: true },
-  { symbol: "SBIN", name: "State Bank of India", esg: false },
-];
-const sampleHoldings = [
-  {
-    symbol: "TCS",
-    name: "Tata Consultancy Services",
-    qty: 10,
-    avgCost: 3200,
-    currentPrice: 3500,
-    value: 35000,
-    pnl: 3000,
-    pnlPct: 9.38
-  },
-  {
-    symbol: "RELIANCE",
-    name: "Reliance Industries",
-    qty: 5,
-    avgCost: 2400,
-    currentPrice: 2800,
-    value: 14000,
-    pnl: 2000,
-    pnlPct: 16.67
-  }
-];
-
-const TIMEFRAMES = ["1D", "1W", "1M", "1Y"];
-const ALPHA_BASE = "https://www.alphavantage.co/query";
-const AV_KEY = process.env.REACT_APP_ALPHA_VANTAGE_KEY || "";
-
-const getLS = (k, def) => {
-  try {
-    return JSON.parse(localStorage.getItem(k)) ?? def;
-  } catch {
-    return def;
-  }
-};
-
-const setLS = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-function dummySeries(days = 30, start = 100) {
-  const now = Date.now();
-  let v = start;
-  const out = [];
-  for (let i = days - 1; i >= 0; i--) {
-    v += (Math.random() - 0.5) * (start * 0.02);
-    out.push({ time: new Date(now - i * 24 * 3600 * 1000).toISOString(), price: Math.max(1, +v.toFixed(2)) });
-  }
-  return out;
-}
-
-async function fetchSeries(symbol, timeframe) {
-  if (!AV_KEY) {
-    if (timeframe === '1D') return dummySeries(24, 100).map((d, i) => ({ time: i, price: d.price }));
-    if (timeframe === '1W') return dummySeries(7, 100);
-    if (timeframe === '1M') return dummySeries(30, 100);
-    return dummySeries(365, 100);
-  }
-
-  try {
-    if (timeframe === '1D') {
-      const url = `${ALPHA_BASE}?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&outputsize=compact&apikey=${AV_KEY}`;
-      const r = await fetch(url);
-      const j = await r.json();
-      const series = j["Time Series (5min)"];
-      if (!series) throw new Error("No intraday data");
-
-      let points = Object.entries(series)
-        .map(([t, obj]) => ({
-          time: t,
-          open: +obj["1. open"],
-          high: +obj["2. high"],
-          low: +obj["3. low"],
-          close: +obj["4. close"],
-        }))
-        .sort((a, b) => new Date(a.time) - new Date(b.time));
-
-      return points;
-    }
-    else {
-      // daily adjusted
-      const url = `${ALPHA_BASE}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=compact&apikey=${AV_KEY}`;
-      const r = await fetch(url);
-      const j = await r.json();
-      const series = j["Time Series (Daily)"];
-      if (!series) throw new Error("No daily data");
-      let points = Object.entries(series)
-        .map(([t, obj]) => ({
-          time: t,
-          open: +obj["1. open"],
-          high: +obj["2. high"],
-          low: +obj["3. low"],
-          close: +obj["4. close"],
-          price: +obj["4. close"],
-        }))
-        .sort((a, b) => new Date(a.time) - new Date(b.time));
-      if (timeframe === '1W') points = points.slice(-7);
-      else if (timeframe === '1M') points = points.slice(-30);
-      else if (timeframe === '1Y') points = points.slice(-365);
-      return points;
-    }
-  }
-  catch {
-    // fallback
-    if (timeframe === '1D') return dummySeries(24, 100).map((d, i) => ({ time: i, price: d.price }));
-    if (timeframe === '1W') return dummySeries(7, 100);
-    if (timeframe === '1M') return dummySeries(30, 100);
-    return dummySeries(365, 100);
-  }
-}
+import { useAuth } from "../../context/AuthContext";
+import { getFirebaseIdToken } from "../../utils/authToken";
+import { useToast } from "../../components/toast/ToastContext";
 
 const TradingPage = () => {
-  const { user } = useAuth(); // Get user from auth context
-  const [timeframe, setTimeframe] = useState(TIMEFRAMES[1]); // 1week
-  const [selected, setSelected] = useState(KNOWN_STOCKS[0]);
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [mongoUser, setMongoUser] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [series, setSeries] = useState([]);
+  const [allSeries, setAllSeries] = useState([]);
+  const [replayDate, setReplayDate] = useState(null);
+
   const [currentPrice, setCurrentPrice] = useState(0);
-  const [balance, setBalance] = useState(getLS("tp:balance", 10000)); // Rs.10000 default
-  const [holdings, setHoldings] = useState(getLS("tp:holdings", []));
-  const [watchlist, setWatchlist] = useState(getLS("tp:watchlist", ["INFY", "TCS", "RELIANCE"]));
-  const [esgOnly, setEsgOnly] = useState(getLS("tp:esgOnly", false));
+  const [balance, setBalance] = useState(0);
+  const [holdings, setHoldings] = useState([]);
+  const [mode, setMode] = useState("LIVE");
+  const [bankBalance, setBankBalance] = useState(0);
+  const [showAllocate, setShowAllocate] = useState(false);
+  const [allocateAmount, setAllocateAmount] = useState(0);
 
-  const [chartType, setChartType] = useState("line");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tradeType, setTradeType] = useState("");
-  const [mood, setMood] = useState("🙂");
-  const [conviction, setConviction] = useState(5);
-  const [pendingQty, setPendingQty] = useState(1);
-  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
-  const [pendingTrade, setPendingTrade] = useState(null);
-
-  useEffect(() => setLS("tp:selected", selected), [selected]);
-  useEffect(() => setLS("tp:balance", balance), [balance]);
-  useEffect(() => setLS("tp:holdings", holdings), [holdings]);
-  useEffect(() => setLS("tp:watchlist", watchlist), [watchlist]);
-  useEffect(() => setLS("tp:esgOnly", esgOnly), [esgOnly]);
-
-  // Fetch series
   useEffect(() => {
-    let alive = true;
+    if (!user) return;
+
     (async () => {
-      const s = await fetchSeries(selected.symbol, timeframe);
-      if (!alive) return;
-      setSeries(s);
-      if (s.length) setCurrentPrice(+s[s.length - 1].price);
+      const token = await getFirebaseIdToken();
+      const res = await fetch("http://localhost:5000/api/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        toast.error("Failed to load user");
+        return;
+      }
+
+      const data = await res.json();
+      setMongoUser(data);
     })();
-    return () => { alive = false; };
-  }, [selected.symbol, timeframe]);
+  }, [user]);
 
-  const filteredUniverse = useMemo(
-    () => KNOWN_STOCKS.filter((s) => (esgOnly ? s.esg : true)),
-    [esgOnly]
-  );
-
-  const onBuy = (qty) => {
-    const cost = qty * currentPrice;
-    if (qty <= 0 || cost > balance) return false;
-    setBalance((b) => +(b - cost).toFixed(2));
-
-    setHoldings((prev) => {
-      const idx = prev.findIndex((h) => h.symbol === selected.symbol);
-      if (idx === -1) {
-        return [...prev, { symbol: selected.symbol, name: selected.name, qty, avgCost: currentPrice }];
-      }
-      const h = prev[idx];
-      const newQty = h.qty + qty;
-      const newAvg = (h.avgCost * h.qty + currentPrice * qty) / newQty;
-      const copy = [...prev];
-      copy[idx] = { ...h, qty: newQty, avgCost: +newAvg.toFixed(2) };
-      return copy;
-    });
-    return true;
-  };
-
-  const onSell = (qty) => {
-    if (qty <= 0) return false;
-    let ok = false;
-    setHoldings((prev) => {
-      const idx = prev.findIndex((h) => h.symbol === selected.symbol);
-      if (idx === -1) return prev;
-      const h = prev[idx];
-      if (qty > h.qty) return prev;
-      ok = true;
-      const newQty = h.qty - qty;
-      const proceeds = qty * currentPrice;
-      setBalance((b) => +(b + proceeds).toFixed(2));
-      if (newQty === 0) {
-        const copy = [...prev];
-        copy.splice(idx, 1);
-        return copy;
-      }
-      const copy = [...prev];
-      copy[idx] = { ...h, qty: newQty };
-      return copy;
-    });
-    return ok;
-  };
-
-  // const handleTradeClick = (type, qty) => {
-  //   setTradeType(type);
-  //   setPendingQty(qty);
-  //   setIsModalOpen(true);
-  // };
-  const handleTradeClick = (type, qty) => {
-    setPendingTrade({ type, qty });
-    setIsAnalysisModalOpen(true);
-  };
-  // Add handleTradeConfirm
-  const handleTradeConfirm = () => {
-    if (pendingTrade) {
-      if (pendingTrade.type === "Buy") onBuy(pendingTrade.qty);
-      else if (pendingTrade.type === "Sell") onSell(pendingTrade.qty);
+  const refreshAccount = async () => {
+    if (!mongoUser) {
+      return (
+        <div className="p-6 text-gray-500">Loading trading account...</div>
+      );
     }
-  };
-  const handleCheckinSubmit = async ({ mood, conviction, reflection }) => {
-    setIsModalOpen(false);
 
+    const token = await getFirebaseIdToken();
+
+    const wallet = await fetch("http://localhost:5000/api/wallet", {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json());
+    setBankBalance(wallet.bankBalance || 0);
+    setBalance(wallet.tradingBalance || 0);
+
+    const pf = await fetch("http://localhost:5000/api/portfolio", {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json());
+
+    setHoldings(pf.rows || []);
+  };
+
+  useEffect(() => {
+    refreshAccount();
+  }, [mongoUser]);
+
+  const addDemoMoney = async () => {
+    const token = await getFirebaseIdToken();
+    await fetch("http://localhost:5000/api/wallet/add-bank", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ amount: 10000 }),
+    });
+    toast.success("Demo money added to bank account");
+    refreshAccount();
+  };
+
+  const allocateToTrading = async () => {
+    const amount = Number(allocateAmount);
+    if (!amount || amount <= 0 || amount > bankBalance) {
+      toast.error("Invalid amount");
+      return;
+    }
     try {
-      const res = await fetch("http://localhost:5000/api/mentor/checkin", {
+      const token = await getFirebaseIdToken();
+      const res = await fetch("http://localhost:5000/api/wallet/allocate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          tradeType,
-          mood,
-          conviction,
-          reflection,
-          stock: selected?.symbol || "N/A",
+          to: "trading",
+          amount,
         }),
       });
-      const data = await res.json();
-      alert(`AI Mentor Advice: ${data.advice}`);
-
-      if (tradeType === "Buy") onBuy(pendingQty);
-      else if (tradeType === "Sell") onSell(pendingQty);
-
-    } catch (err) {
-      console.error("Mentor check-in failed:", err);
-      alert("Trade executed, but mentor advice not available.");
-      if (tradeType === "Buy") onBuy(pendingQty);
-      else if (tradeType === "Sell") onSell(pendingQty);
+      if (!res.ok) throw new Error();
+      toast.success("Funds allocated to trading account");
+      setShowAllocate(false);
+      setAllocateAmount(0);
+      refreshAccount();
+    } catch {
+      toast.error("Allocation failed");
     }
   };
 
-  const toggleWatch = (symbol) => {
-    setWatchlist((w) =>
-      w.includes(symbol) ? w.filter((s) => s !== symbol) : [...w, symbol]
-    );
+  useEffect(() => {
+    if (!selected) return;
+
+    const loadCandles = async () => {
+      const res = await fetch(
+        `http://localhost:5000/api/yahoo/candles?symbol=${selected.symbol}`
+      );
+      const candles = await res.json();
+
+      if (!Array.isArray(candles) || candles.length === 0) {
+        setAllSeries([]);
+        setSeries([]);
+        setCurrentPrice(0);
+        return;
+      }
+
+      setAllSeries(candles);
+      setReplayDate(candles[candles.length - 1].time);
+
+      if (mode === "LIVE") {
+        setSeries(candles);
+        setCurrentPrice(candles[candles.length - 1].close);
+      }
+    };
+
+    loadCandles();
+  }, [selected]);
+
+  useEffect(() => {
+    if (mode !== "REPLAY" || !replayDate || allSeries.length === 0) return;
+
+    const sliced = allSeries.filter((c) => c.time <= replayDate);
+    setSeries(sliced);
+
+    if (sliced.length) {
+      setCurrentPrice(sliced[sliced.length - 1].close);
+    }
+  }, [mode, replayDate, allSeries]);
+
+  useEffect(() => {
+    if (mode === "LIVE" && allSeries.length) {
+      setSeries(allSeries);
+      setCurrentPrice(allSeries[allSeries.length - 1].close);
+    }
+  }, [mode]);
+
+  const getOwnedQuantity = (symbol) => {
+    const holding = holdings.find((h) => h.ticker === symbol);
+    return holding ? Number(holding.quantity) : 0;
   };
 
-  // Portfolio totals
-  const totals = useMemo(() => {
-    const rows = holdings.map((h) => {
-      const value = +(h.qty * currentPrice).toFixed(2);
-      const cost = +(h.qty * h.avgCost).toFixed(2);
-      const pnl = +(value - cost).toFixed(2);
-      const pnlPct = cost ? +((pnl / cost) * 100).toFixed(2) : 0;
-      return { ...h, currentPrice, value, pnl, pnlPct };
-    });
-    const totalValue = rows.reduce((a, r) => a + r.value, 0);
-    const totalCost = rows.reduce((a, r) => a + r.avgCost * r.qty, 0);
-    const totalPnl = +(totalValue - totalCost).toFixed(2);
-    return { rows, totalValue: +totalValue.toFixed(2), totalPnl, totalCost: +totalCost.toFixed(2) };
-  }, [holdings, currentPrice]);
+  const executeTrade = async (type, qty) => {
+    if (mode === "REPLAY") {
+      toast.error("Trading is disabled in Replay mode");
+      return;
+    }
+
+    if (!mongoUser || !selected || qty <= 0 || currentPrice <= 0) {
+      toast.error("Invalid trade");
+      return;
+    }
+
+    if (type === "Sell") {
+      const ownedQty = getOwnedQuantity(selected.symbol);
+      if (ownedQty === 0) {
+        toast.error("You do not own this stock");
+        return;
+      }
+      if (qty > ownedQty) {
+        toast.error(`You only own ${ownedQty} shares`);
+        return;
+      }
+    }
+
+    try {
+      const token = await getFirebaseIdToken();
+
+      const res = await fetch("http://localhost:5000/api/transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ticker: selected.symbol,
+          name: selected.name,
+          transactionType: type.toUpperCase(),
+          quantity: qty,
+          price: currentPrice,
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      await refreshAccount();
+      toast.success(`${type} executed at ₹${currentPrice.toFixed(2)}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Trade failed");
+      await refreshAccount();
+    }
+  };
+
+  const totals = useMemo(
+    () => ({
+      totalValue: holdings.reduce((a, h) => a + (h.value || 0), 0),
+      totalPnl: holdings.reduce((a, h) => a + (h.pnl || 0), 0),
+    }),
+    [holdings]
+  );
 
   return (
-    <div className='flex flex-col gap-6 p-4 md:p-6 max-w-7xl mx-auto'>
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-        <div className='bg-white rounded-2xl shadow p-4'>
-          <div className='text-sm text-gray-600'>Balance</div>
-          <div className='text-2xl font-semibold'>Rs.{balance.toLocaleString()}</div>
-        </div>
-        <div className='bg-white rounded-2xl shadow p-4'>
-          <div className='text-sm text-gray-600'>Portfolio Value</div>
-          <div className='text-2xl font-semibold'>Rs.{totals.totalValue.toLocaleString()}</div>
-        </div>
-        <div className={`bg-white rounded-2xl shadow p-4`}>
-          <div className="text-sm text-gray-500">P/L</div>
-          <div className={`text-2xl font-semibold ${totals.totalPnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-            Rs.{totals.totalPnl.toLocaleString()}
-          </div>
-        </div>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="flex gap-2">
+        <button
+          onClick={() => setMode("LIVE")}
+          className={`px-3 py-1 rounded ${
+            mode === "LIVE" ? "bg-black text-white" : "border"
+          }`}
+        >
+          Live (Daily · US)
+        </button>
+
+        <button
+          onClick={() => setMode("REPLAY")}
+          className={`px-3 py-1 rounded ${
+            mode === "REPLAY" ? "bg-black text-white" : "border"
+          }`}
+        >
+          Replay (Backtest)
+        </button>
       </div>
 
-      {/* main */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-6">
-        {/* Left Panel - Pass userId to LeftPanel */}
-        <div className="bg-white rounded-2xl shadow p-4">
-          <LeftPanel
-            selected={selected}
-            setSelected={setSelected}
-            userId={user?.id} // Pass user ID to LeftPanel
-          />
-        </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card">Bank Balance ${bankBalance.toLocaleString()}</div>
+        <div className="card">Balance ${balance.toLocaleString()}</div>
+        <div className="card">Value ${totals.totalValue.toLocaleString()}</div>
+        <div className="card">P/L ${totals.totalPnl.toLocaleString()}</div>
+      </div>
+      <div className="flex gap-2">
+        <button className="border px-4 py-2 rounded" onClick={addDemoMoney}>
+          Add Demo Money
+        </button>
+        <button
+          className="border px-4 py-2 rounded w-fit"
+          onClick={() => setShowAllocate(true)}
+        >
+          Allocate Funds
+        </button>
+      </div>
 
-        {/* Center : chart*/}
-        <div className="bg-white rounded-2xl shadow p-4 flex flex-col">
-          <div className='flex items-end justify-between gap-3 mb-3'>
-            <div>
-              <div className='text-lg font-semibold'>{selected.name} ({selected.symbol})</div>
-              <div className='text-sm'>
-                <span className={`${currentPrice >= (series.at(-2)?.price ?? currentPrice) ? "text-green-600" : "text-red-600"} font-semibold`}>
-                  Rs{currentPrice.toFixed(2)}
-                </span>
-              </div>
+      <div className="grid grid-cols-[280px_1fr_320px] gap-6">
+        <LeftPanel selected={selected} setSelected={setSelected} mode={mode} />
+
+        <div className="bg-white rounded-xl p-4">
+          {/* {selected && (
+            <div className="flex justify-between mb-2">
+              <h2>{selected.name}</h2>
+              <span>
+                {currentPrice > 0 ? `₹${currentPrice.toFixed(2)}` : "--"}
+              </span>
             </div>
-            <div className="flex gap-2">
-              {TIMEFRAMES.map(tf => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-3 py-1 rounded-full border ${tf === timeframe ? "bg-black text-white" : "hover:bg-gray-100"}`}
-                >{tf}</button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => setChartType("line")}
-              className={`px-3 py-1 rounded-full border ${chartType === "line" ? "bg-black text-white" : "hover:bg-gray-100"}`}
-            >
-              Line
-            </button>
-            <button
-              onClick={() => setChartType("candlestick")}
-              className={`px-3 py-1 rounded-full border ${chartType === "candlestick" ? "bg-black text-white" : "hover:bg-gray-100"}`}
-            >
-              Candlestick
-            </button>
-          </div>
-          {chartType === "line" ? (
-            <Chart data={series} />
-          ) : (
-            <CandlestickChart data={series} />
-          )}
+          )} */}
+          <CandlestickChart series={series} />
         </div>
-
-        {/* Right */}
-        <div className="bg-white rounded-2xl shadow p-4">
-          <TradePanel
-            currentPrice={currentPrice}
-            balance={balance}
-            onBuy={(qty) => handleTradeClick("Buy", qty)}
-            onSell={(qty) => handleTradeClick("Sell", qty)}
-          />
-
-          {/* Simple risk bar */}
-          <div className="mt-4">
-            <div className="text-sm text-gray-600 mb-1">Risk Indicator</div>
-            <div className="h-2 w-full rounded bg-gradient-to-r from-green-500 via-yellow-400 to-red-500" />
-          </div>
-        </div>
+        
+        <TradePanel
+          balance={balance}
+          currentPrice={currentPrice}
+          onTrade={executeTrade}
+          disabled={mode === "REPLAY" || balance <= 0}
+          canSell={getOwnedQuantity(selected?.symbol) > 0}
+        />
       </div>
 
-      {/* Bottom: Holdings */}
-      <div className="bg-white rounded-2xl shadow p-4">
-        {/* <HoldingsTable rows={totals.rows} /> */}
-        <HoldingsTable rows={sampleHoldings} />
-      </div>
-
-      {/* Pre-trade Check-in Modal */}
-      <PreTradeCheckinModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCheckinSubmit}
-      />
-      <TradeAnalysisModal
-        isOpen={isAnalysisModalOpen}
-        onClose={() => setIsAnalysisModalOpen(false)}
-        onConfirm={handleTradeConfirm}
-        stock={selected.symbol}
-        tradeType={pendingTrade?.type || ''}
-        quantity={pendingTrade?.qty || 0}
-        currentPrice={currentPrice}
-      />
+      <HoldingsTable rows={holdings} />
     </div>
-  )
-}
+  );
+};
 
 export default TradingPage;
