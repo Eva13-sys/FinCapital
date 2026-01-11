@@ -6,7 +6,7 @@ import fs from 'fs';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { auth } from './auth.js';
+import verifyFirebaseToken from "../middleware/firebaseAuth.js";
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -115,7 +115,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create a new post
-router.post('/', auth, upload.single('image'), async (req, res) => {
+router.post('/', verifyFirebaseToken, upload.single('image'), async (req, res) => {
   try {
     const { content } = req.body;
     
@@ -144,7 +144,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 });
 
 // Like a post
-router.post('/:id/like', auth, async (req, res) => {
+router.post('/:id/like', verifyFirebaseToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id).populate('userId');
     if (!post) {
@@ -181,7 +181,7 @@ router.post('/:id/like', auth, async (req, res) => {
 });
 
 // Unlike a post
-router.post('/:id/unlike', auth, async (req, res) => {
+router.post('/:id/unlike', verifyFirebaseToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) {
@@ -198,7 +198,7 @@ router.post('/:id/unlike', auth, async (req, res) => {
 });
 
 // Add comment to post
-router.post('/:id/comment', auth, async (req, res) => {
+router.post('/:id/comment', verifyFirebaseToken, async (req, res) => {
   try {
     const { content } = req.body;
     const post = await Post.findById(req.params.id).populate('userId');
@@ -237,7 +237,7 @@ router.post('/:id/comment', auth, async (req, res) => {
 });
 
 // Report a post
-router.post('/:id/report', auth, async (req, res) => {
+router.post('/:id/report', verifyFirebaseToken, async (req, res) => {
   try {
     const { reason, details } = req.body;
     const post = await Post.findById(req.params.id).populate('userId');
@@ -285,7 +285,7 @@ router.post('/:id/report', auth, async (req, res) => {
 });
 
 // Delete post (moderators and admins only)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', verifyFirebaseToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     

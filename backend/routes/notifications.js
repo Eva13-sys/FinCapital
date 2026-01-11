@@ -1,12 +1,13 @@
 // backend/routes/notifications.js
 import express from 'express';
 import Notification from '../models/Notification.js';
-import { auth } from './auth.js';
+import verifyFirebaseToken from "../middleware/firebaseAuth.js";
+
 
 const router = express.Router();
 
 // Get user notifications
-router.get('/', auth, async (req, res) => {
+router.get('/', verifyFirebaseToken, async (req, res) => {
   try {
     const { limit = 20, page = 1 } = req.query;
     
@@ -35,7 +36,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Mark notifications as read
-router.patch('/read', auth, async (req, res) => {
+router.patch('/read', verifyFirebaseToken, async (req, res) => {
   try {
     await Notification.updateMany(
       { userId: req.user._id, read: false },
@@ -49,7 +50,7 @@ router.patch('/read', auth, async (req, res) => {
 });
 
 // Mark single notification as read
-router.patch('/read/:id', auth, async (req, res) => {
+router.patch('/read/:id', verifyFirebaseToken, async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
@@ -68,7 +69,7 @@ router.patch('/read/:id', auth, async (req, res) => {
 });
 
 // Delete notification
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', verifyFirebaseToken, async (req, res) => {
   try {
     await Notification.findOneAndDelete({
       _id: req.params.id,

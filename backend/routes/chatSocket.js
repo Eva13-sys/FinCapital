@@ -1,5 +1,5 @@
 // backend/socket/chatSocket.js
-import OnlineUser from '../models/OnlineUser';
+import OnlineUser from '../models/OnlineUser.js';
 import ChatMessage from '../models/ChatMessage.js';
 import User from '../models/User.js';
 

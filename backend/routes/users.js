@@ -2,11 +2,11 @@
 import express from 'express';
 import User from '../models/User.js';
 import Post from '../models/Post.js';
-import { auth } from './auth.js';
+import verifyFirebaseToken from "../middleware/firebaseAuth.js";
+
 
 const router = express.Router();
 
-// Get user profile - CHANGE THIS LINE
 router.get('/profile/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -55,7 +55,7 @@ router.get('/top/traders', async (req, res) => {
 });
 
 // Follow user - CHANGE THIS LINE TOO
-router.post('/follow/:id', auth, async (req, res) => {
+router.post('/follow/:id', verifyFirebaseToken, async (req, res) => {
   try {
     const userToFollow = await User.findById(req.params.id);
     if (!userToFollow) {
@@ -85,7 +85,7 @@ router.post('/follow/:id', auth, async (req, res) => {
 });
 
 // Unfollow user - AND THIS LINE
-router.post('/unfollow/:id', auth, async (req, res) => {
+router.post('/unfollow/:id', verifyFirebaseToken, async (req, res) => {
   try {
     const userToUnfollow = await User.findById(req.params.id);
     if (!userToUnfollow) {
@@ -110,7 +110,7 @@ router.post('/unfollow/:id', auth, async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', auth, async (req, res) => {
+router.put('/profile', verifyFirebaseToken, async (req, res) => {
   try {
     const { name, bio, rank } = req.body;
     
